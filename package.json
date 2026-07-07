@@ -1,0 +1,27 @@
+{
+  "name": "ambient-mixer",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "npx eslint .",
+    "lint:fix": "npx eslint . --fix",
+    "start": "node src/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "express": "^5.2.1",
+    "speaker": "^0.5.5"
+  },
+  "devDependencies": {
+    "@stylistic/eslint-plugin-js": "^4.4.1",
+    "@stylistic/eslint-plugin-plus": "^4.4.1",
+    "eslint": "^10.6.0",
+    "eslint-plugin-jsdoc": "^63.0.12",
+    "globals": "^17.7.0"
+  }
+}
