@@ -8,10 +8,18 @@ let clients = []
 const app = express()
 const audioManager = new AudioManager()
 const sounds = loadAudioFiles()
-const rain = sounds.filter(f => f.match(/rain/))
-const birds = sounds.filter(f => f.match(/bird/))
-audioManager.addTrack({ sounds: birds, name: 'birds', maxActive: 3 })
-audioManager.addTrack({ sounds: rain, name: 'rain' })
+const ambient = sounds.filter(f => f.match(/rain/) || f.match(/waves/) || f.match(/brook/)) 
+const birds = sounds.filter(f => f.match(/bird/) || f.match(/crickets/))
+const thunder = sounds.filter(f => f.match(/thunder/))
+audioManager
+  .addTrack({ sounds: birds, name: 'birds', maxActive: 2, minDelay: 1_000 })
+  .on('playing', ({ file, clip }) => console.log(`Playing ${file}`))
+  audioManager
+  .addTrack({ sounds: ambient, name: 'ambient' })
+  .on('playing', ({ file, clip }) => console.log(`Playing ${file}`))
+  audioManager
+  .addTrack({ sounds: thunder, name: 'thunder', maxActive: 5, minDelay: 300 })
+  .on('playing', ({ file, clip }) => console.log(`Playing ${file}`))
 const speaker = C.DEBUG ?
   new Speaker({
     channels: C.CHANNELS,
@@ -21,14 +29,14 @@ const speaker = C.DEBUG ?
     { write: () => {} }
 
 // eslint-disable-next-line no-magic-numbers
-loop(() => audioManager.generateFrame(), (C.BUFFER_FRAMES / C.SAMPLE_RATE) * 1000)
-//setInterval(() => audioManager.generateFrame(), (C.BUFFER_FRAMES / C.SAMPLE_RATE) * 1000)
-//setInterval(() => audioManager.addRandomSound().catch(console.error), C.RANDOM_SOUND_INTERVAL)
+loop(async () => {
+  await audioManager.schedule()
+  audioManager.generateFrame()
+}, (C.BUFFER_FRAMES / C.SAMPLE_RATE) * 1000)
 
 audioManager.on('frame', (out) => [ ...clients, speaker ].forEach((c) => {
   c.write(out)
 }))
-audioManager.on('playing', (file) => console.log('Playing', file))
 audioManager.on('new-clip', ac => {
   ac.on('finished', () => console.log('clip ended'))
 })

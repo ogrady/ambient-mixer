@@ -2,7 +2,7 @@ import * as C from './constants.js'
 import fs from 'node:fs'
 import path from 'node:path'
 import { spawn } from 'child_process'
-import { clamp, pick } from './util.js'
+import { clamp, LruCache, pick } from './util.js'
 import EventEmitter from 'node:events'
 
 const declip = (bit) => clamp(bit, C.AUDIO_CLIPPING_LOWER_BOUND, C.AUDIO_CLIPPING_UPPER_BOUND)
@@ -11,6 +11,7 @@ export const loadAudioFiles = () => fs.readdirSync('./sounds').
   filter((f) => f.endsWith('.mp3')).
   map((f) => path.join('./sounds', f))
 
+/** @returns {Promise<Buffer>} */
 const decodeMp3 = (file) => new Promise((resolve, reject) => {
   const ffmpeg = spawn('ffmpeg', [
     '-i',
@@ -89,8 +90,9 @@ class AudioTrack {
   #name
   /** @type {number} */
   #lastAddedTimestamp
+  #cache = new LruCache()
 
-  constructor ({ name = '', maxActive = 1, sounds = [], minDelay = 1000} = {}) {
+  constructor ({ name = '', maxActive = 1, sounds = [], minDelay = 0} = {}) {
     this.#maxActive = maxActive
     this.#sounds = sounds
     this.#name = name
@@ -101,39 +103,56 @@ class AudioTrack {
     this.#emitter.on(event, fn)
   }
 
+  /**
+   * @returns {ReturnType<decodeMp3>} 
+   */
+  async #getAudio (file) {
+    let pcm = this.#cache.get(file)
+    if (!pcm) {
+      pcm = await decodeMp3(file)   
+      this.#cache.set(file, pcm)
+    }
+    return pcm
+  }
+
   async addRandomSound () {
     if (!this.#sounds.length)
       return
     if (this.#active.length >= this.#maxActive)
       return
-    if (this.#lastAddedTimestamp + this.#minDelay > new Date().getTime())
+    const now = new Date().getTime()
+    if (this.#lastAddedTimestamp + this.#minDelay > now)
       return
+    this.#lastAddedTimestamp = now
     const file = pick(this.#sounds)
-    const pcm = await decodeMp3(file)
+    const pcm = await this.#getAudio(file)
     const ac = new AudioClip({ buffer: pcm })
     this.#active.push(ac)
     this.#emitter.emit('playing', { file, clip: ac})
   }
 
   async generateFrame (buffer) {
-    await this.addRandomSound()
     this.#active = this.#active.filter((c) => !c.mix(buffer))
   }  
 }
 
 export class AudioManager {
   #emitter = new EventEmitter()
+  /** @type {AudioTrack[]} */
   #tracks = []
-  #active = []
 
   on (event, fn) {
     this.#emitter.on(event, fn)
   }
 
-  addTrack({ name, sounds = [], maxActive = 1 } = {}) {
-    const track = new AudioTrack({ name, sounds, maxActive })
+  addTrack({ name, sounds = [], maxActive = 1, minDelay = 0 } = {}) {
+    const track = new AudioTrack({ name, sounds, maxActive, minDelay })
     this.#tracks.push(track)
     return track
+  }
+
+  async schedule () {
+    return Promise.all(this.#tracks.map(t => t.addRandomSound()))
   }
 
   async generateFrame () {
