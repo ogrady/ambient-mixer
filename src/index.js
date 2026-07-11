@@ -7,7 +7,11 @@ import { loop } from './util.js'
 let clients = []
 const app = express()
 const audioManager = new AudioManager()
-audioManager.addTrack({ sounds: loadAudioFiles() })
+const sounds = loadAudioFiles()
+const rain = sounds.filter(f => f.match(/rain/))
+const birds = sounds.filter(f => f.match(/bird/))
+audioManager.addTrack({ sounds: birds, name: 'birds', maxActive: 3 })
+audioManager.addTrack({ sounds: rain, name: 'rain' })
 const speaker = C.DEBUG ?
   new Speaker({
     channels: C.CHANNELS,

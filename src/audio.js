@@ -90,7 +90,7 @@ class AudioTrack {
   /** @type {number} */
   #lastAddedTimestamp
 
-  constructor ({ name = '', maxActive = 2, sounds = [], minDelay = 1000} = {}) {
+  constructor ({ name = '', maxActive = 1, sounds = [], minDelay = 1000} = {}) {
     this.#maxActive = maxActive
     this.#sounds = sounds
     this.#name = name
@@ -130,8 +130,8 @@ export class AudioManager {
     this.#emitter.on(event, fn)
   }
 
-  addTrack({ name, sounds = [] } = {}) {
-    const track = new AudioTrack({ name, sounds })
+  addTrack({ name, sounds = [], maxActive = 1 } = {}) {
+    const track = new AudioTrack({ name, sounds, maxActive })
     this.#tracks.push(track)
     return track
   }
