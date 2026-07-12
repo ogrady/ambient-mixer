@@ -1,7 +1,7 @@
 export const clamp = (val, min, max) => Math.min(max, Math.max(min, val))
 export const pick = (arr) => arr[Math.floor(Math.random() * arr.length)]
 
-export async function loop(fn, delay, ...args) {
+export async function loop (fn, delay, ...args) {
   await fn(...args)
   setTimeout(loop, delay, fn, delay, ...args)
 }
@@ -10,15 +10,15 @@ export class LruCache {
   #maxSize
   #cache = new Map()
 
-  constructor(maxSize = 10) {
+  constructor (maxSize = 10) {
     this.#maxSize = maxSize
   }
 
-  has(key) {
+  has (key) {
     return this.#cache.has(key)
   }
 
-  get(key) {
+  get (key) {
     if (!this.#cache.has(key))
       return undefined
 
@@ -31,7 +31,7 @@ export class LruCache {
     return value
   }
 
-  set(key, value) {
+  set (key, value) {
     if (this.#cache.has(key))
       this.#cache.delete(key)
 
@@ -39,15 +39,16 @@ export class LruCache {
 
     if (this.#cache.size > this.#maxSize) {
       const oldestKey = this.#cache.keys().next().value
+
       this.#cache.delete(oldestKey)
     }
   }
 
-  clear() {
+  clear () {
     this.#cache.clear()
   }
 
-  get size() {
+  get size () {
     return this.#cache.size
   }
 }

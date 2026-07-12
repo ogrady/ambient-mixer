@@ -7,11 +7,14 @@ import EventEmitter from 'node:events'
 
 const declip = (bit) => clamp(bit, C.AUDIO_CLIPPING_LOWER_BOUND, C.AUDIO_CLIPPING_UPPER_BOUND)
 
-export const loadAudioFiles = () => fs.readdirSync('./sounds')
-  .filter((f) => f.endsWith('.mp3'))
-  .map((f) => path.join('./sounds', f))
+export const loadAudioFiles = () => fs.readdirSync('./sounds').
+  filter((f) => f.endsWith('.mp3')).
+  map((f) => path.join('./sounds', f))
 
-/** @returns {Promise<Buffer>} */
+/**
+ * @param                     file
+ * @returns {Promise<Buffer>}
+ */
 const decodeMp3 = (file) => new Promise((resolve, reject) => {
   const ffmpeg = spawn('ffmpeg', [
     '-i',
@@ -25,6 +28,7 @@ const decodeMp3 = (file) => new Promise((resolve, reject) => {
     '-',
   ])
   const chunks = []
+
   ffmpeg.stdout.on('data', (d) => chunks.push(d))
   ffmpeg.stderr.on('data', () => {})
   ffmpeg.on('close', (code) => {
@@ -45,7 +49,7 @@ class AudioClip {
   constructor ({ buffer, offset = 0, volume = 0.8 } = {}) {
     this.buffer = buffer
     this.offset = 0
-    this.volume = 0.8 
+    this.volume = 0.8
   }
 
   on (event, fn) {
@@ -69,9 +73,10 @@ class AudioClip {
 
     this.offset += frames * C.FRAME_BYTES
     const finished = this.offset >= this.buffer.length
-    if (finished) {
+
+    if (finished)
       this.#emitter.emit('finished')
-    }
+
     return finished
   }
 }
@@ -96,12 +101,13 @@ class AudioTrack {
     return this.#active.length >= this.#maxActive
   }
 
-  constructor ({ name = '', maxActive = 1, sounds = [], minDelay = 0} = {}) {
+  constructor ({ name = '', maxActive = 1, sounds = [], minDelay = 0 } = {}) {
     this.#maxActive = maxActive
     this.#sounds = sounds
     this.#name = name
     this.#minDelay = minDelay
-    if (this.#sounds.length === 0) throw new Error(`track ${name} has no sounds`)
+    if (this.#sounds.length === 0)
+      throw new Error(`track ${name} has no sounds`)
   }
 
   on (event, fn) {
@@ -109,14 +115,17 @@ class AudioTrack {
   }
 
   /**
-   * @returns {ReturnType<decodeMp3>} 
+   * @param                           file
+   * @returns {ReturnType<decodeMp3>}
    */
   async #getAudio (file) {
     let pcm = this.#cache.get(file)
+
     if (!pcm) {
-      pcm = await decodeMp3(file)   
+      pcm = await decodeMp3(file)
       this.#cache.set(file, pcm)
     }
+
     return pcm
   }
 
@@ -124,14 +133,16 @@ class AudioTrack {
     if (this.full)
       return
     const now = new Date().getTime()
+
     if (this.#lastAddedTimestamp + this.#minDelay > now)
       return
     this.#lastAddedTimestamp = now
     const file = pick(this.#sounds)
     const pcm = await this.#getAudio(file)
     const ac = new AudioClip({ buffer: pcm })
+
     this.#active.push(ac)
-    this.#emitter.emit('playing', { file, clip: ac})
+    this.#emitter.emit('playing', { file, clip: ac })
   }
 
   async fillWithRandomSounds () {
@@ -143,7 +154,7 @@ class AudioTrack {
 
   async generateFrame (buffer) {
     this.#active = this.#active.filter((c) => !c.mix(buffer))
-  }  
+  }
 }
 
 export class AudioManager {
@@ -156,15 +167,17 @@ export class AudioManager {
   }
 
   /**
-   * @param {object} o 
-   * @param {string} o.name
+   * @param {object}   o
+   * @param {string}   o.name
    * @param {string[]} o.sounds
-   * @param {number} o.maxActive
-   * @param {number} o.minDelay
+   * @param {number}   o.maxActive
+   * @param {number}   o.minDelay
    */
-  addTrack({ name, sounds = [], maxActive = 1, minDelay = 0 } = {}) {
+  addTrack ({ name, sounds = [], maxActive = 1, minDelay = 0 } = {}) {
     const track = new AudioTrack({ name, sounds, maxActive, minDelay })
+
     this.#tracks.push(track)
+
     return track
   }
 
@@ -174,18 +187,19 @@ export class AudioManager {
    * sound bits all at once while some bits may already be playing.
    */
   async fillTracks () {
-    return Promise.all(this.#tracks.map(t => t.fillWithRandomSounds()))
+    return Promise.all(this.#tracks.map((t) => t.fillWithRandomSounds()))
   }
 
   async schedule () {
-    return Promise.all(this.#tracks.map(t => t.addRandomSound()))
+    return Promise.all(this.#tracks.map((t) => t.addRandomSound()))
   }
 
   async generateFrame () {
     const out = Buffer.alloc(C.BUFFER_SIZE)
-    for (const track of this.#tracks) {
+
+    for (const track of this.#tracks)
       await track.generateFrame(out)
-    }
+
     this.#emitter.emit('frame', out)
   }
 }
