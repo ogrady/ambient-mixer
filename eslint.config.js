@@ -27,6 +27,7 @@ export default {
     'jsdoc/require-hyphen-before-param-description': 'warn',
     'jsdoc/require-jsdoc': 'off',
     'jsdoc/require-throws': 'error',
+    'jsdoc/require-param-description': 'off',
 
     // Possible problems
     'array-callback-return': [ 'error', { checkForEach: true } ],

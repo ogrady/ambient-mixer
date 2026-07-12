@@ -1,7 +1,26 @@
 import fs from 'node:fs'
-import path from 'node:path'
 import { AudioManager, loadAudioFiles } from './audio.js'
 import { pick } from './util.js'
+
+class Scene {
+  /**
+   * @param {object}                                 o
+   * @param {string}                                 o.name
+   * @param {import('../types.d.ts').schema.Track[]} o.trackData
+   */
+  constructor ({ name, trackData }) {
+    this.name = name
+    this.audioManager = new AudioManager()
+    for (const track of trackData) {
+      this.audioManager.addTrack({
+        name: track.name,
+        maxActive: track.maxActive,
+        minDelay: track.minDelay,
+        sounds: track.sounds,
+      })
+    }
+  }
+}
 
 export function loadScene (file) {
   const sceneData = /** @type {import('../types.d.ts').schema.Scene} */JSON.parse(fs.readFileSync(file))
@@ -24,24 +43,4 @@ export function loadScene (file) {
     name: sceneData.name,
     trackData: sceneData.tracks,
   })
-}
-
-class Scene {
-  /**
-   * @param {object}                                 o
-   * @param {string}                                 o.name
-   * @param {import('../types.d.ts').schema.Track[]} o.trackData
-   */
-  constructor ({ name, trackData }) {
-    this.name = name
-    this.audioManager = new AudioManager()
-    for (const track of trackData) {
-      this.audioManager.addTrack({
-        name: track.name,
-        maxActive: track.maxActive,
-        minDelay: track.minDelay,
-        sounds: track.sounds,
-      })
-    }
-  }
 }

@@ -20,7 +20,7 @@ export class LruCache {
 
   get (key) {
     if (!this.#cache.has(key))
-      return undefined
+      return null
 
     const value = this.#cache.get(key)
 

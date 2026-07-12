@@ -12,7 +12,6 @@ export const loadAudioFiles = () => fs.readdirSync('./sounds').
   map((f) => path.join('./sounds', f))
 
 /**
- * @param                     file
  * @returns {Promise<Buffer>}
  */
 const decodeMp3 = (file) => new Promise((resolve, reject) => {
@@ -91,8 +90,6 @@ class AudioTrack {
   #sounds
   /** @type {AudioClip[]} */
   #active = []
-  /** @type {string} */
-  #name
   /** @type {number} */
   #lastAddedTimestamp
   #cache = new LruCache()
@@ -104,7 +101,7 @@ class AudioTrack {
   constructor ({ name = '', maxActive = 1, sounds = [], minDelay = 0 } = {}) {
     this.#maxActive = maxActive
     this.#sounds = sounds
-    this.#name = name
+    this.name = name
     this.#minDelay = minDelay
     if (this.#sounds.length === 0)
       throw new Error(`track ${name} has no sounds`)
@@ -115,7 +112,6 @@ class AudioTrack {
   }
 
   /**
-   * @param                           file
    * @returns {ReturnType<decodeMp3>}
    */
   async #getAudio (file) {
@@ -147,6 +143,7 @@ class AudioTrack {
 
   async fillWithRandomSounds () {
     while (!this.full) {
+      // eslint-disable-next-line no-await-in-loop
       await this.addRandomSound()
       this.#lastAddedTimestamp = 0
     }
@@ -197,8 +194,10 @@ export class AudioManager {
   async generateFrame () {
     const out = Buffer.alloc(C.BUFFER_SIZE)
 
-    for (const track of this.#tracks)
+    for (const track of this.#tracks) {
+      // eslint-disable-next-line no-await-in-loop
       await track.generateFrame(out)
+    }
 
     this.#emitter.emit('frame', out)
   }

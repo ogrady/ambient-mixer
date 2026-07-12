@@ -21,12 +21,12 @@ for (const file of fs.readdirSync(dir)) {
   const full = path.join(dir, file)
   const scene = JSON.parse(fs.readFileSync(full, 'utf8'))
 
-  if (!validate(scene)) {
+  if (validate(scene)) {
+    console.log(`✅ ${file}`)
+  } else {
     failed = true
     console.error(`\n❌ ${file}`)
     console.error(validate.errors)
-  } else {
-    console.log(`✅ ${file}`)
   }
 }
 
