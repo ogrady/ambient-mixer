@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["name", "tracks"],
+  "additionalProperties": false,
+
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "tracks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/track"
+      }
+    }
+  },
+
+  "$defs": {
+    "track": {
+      "type": "object",
+      "required": ["name", "maxActive", "sounds"],
+      "additionalProperties": false,
+
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+
+        "mode": {
+          "type": "string",
+          "enum": ["loop", "random"]
+        },
+
+        "maxActive": {
+          "type": "integer",
+          "minimum": 1
+        },
+
+        "delay": {
+          "type": "integer",
+          "minimum": 0
+        },
+
+        "sounds": {
+          "oneOf": [
+            { "$ref": "#/$defs/filesSelector" },
+            { "$ref": "#/$defs/matchSelector" }
+          ]
+        }
+      }
+    },
+
+    "filesSelector": {
+      "type": "object",
+      "required": ["files"],
+      "additionalProperties": false,
+
+      "properties": {
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+
+    "matchSelector": {
+      "type": "object",
+      "required": ["match"],
+      "additionalProperties": false,
+
+      "properties": {
+        "match": {
+          "type": "object",
+          "required": ["any"],
+          "additionalProperties": false,
+
+          "properties": {
+            "any": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

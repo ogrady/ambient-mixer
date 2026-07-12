@@ -1,0 +1,29 @@
+{
+  "name": "forest",
+  "tracks": [
+    {
+      "name": "ambient",
+      "mode": "loop",
+      "maxActive": 1,
+      "sounds": {
+        "files": [
+          "sounds/rain1.mp3"
+        ]
+      }
+    },
+    {
+      "name": "animals",
+      "maxActive": 2,
+      "delay": 500,
+      "sounds": {
+        "match":
+          {
+            "any": [
+              "crickets",
+              "birds"
+            ]
+          }
+      }
+    }
+  ]
+}

@@ -92,11 +92,16 @@ class AudioTrack {
   #lastAddedTimestamp
   #cache = new LruCache()
 
+  get full () {
+    return this.#active.length >= this.#maxActive
+  }
+
   constructor ({ name = '', maxActive = 1, sounds = [], minDelay = 0} = {}) {
     this.#maxActive = maxActive
     this.#sounds = sounds
     this.#name = name
     this.#minDelay = minDelay
+    if (this.#sounds.length === 0) throw new Error(`track ${name} has no sounds`)
   }
 
   on (event, fn) {
@@ -116,9 +121,7 @@ class AudioTrack {
   }
 
   async addRandomSound () {
-    if (!this.#sounds.length)
-      return
-    if (this.#active.length >= this.#maxActive)
+    if (this.full)
       return
     const now = new Date().getTime()
     if (this.#lastAddedTimestamp + this.#minDelay > now)
@@ -129,6 +132,13 @@ class AudioTrack {
     const ac = new AudioClip({ buffer: pcm })
     this.#active.push(ac)
     this.#emitter.emit('playing', { file, clip: ac})
+  }
+
+  async fillWithRandomSounds () {
+    while (!this.full) {
+      await this.addRandomSound()
+      this.#lastAddedTimestamp = 0
+    }
   }
 
   async generateFrame (buffer) {
@@ -149,6 +159,15 @@ export class AudioManager {
     const track = new AudioTrack({ name, sounds, maxActive, minDelay })
     this.#tracks.push(track)
     return track
+  }
+
+  /**
+   * Adds the maximum number of random sounds to each track.
+   * This avoid startup lag, when all tracks try to load their initial
+   * sound bits all at once while some bits may already be playing.
+   */
+  async fillTracks () {
+    return Promise.all(this.#tracks.map(t => t.fillWithRandomSounds()))
   }
 
   async schedule () {

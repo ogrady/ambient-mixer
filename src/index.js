@@ -3,6 +3,7 @@ import Speaker from 'speaker'
 import * as C from './constants.js'
 import { loadAudioFiles, AudioManager } from './audio.js'
 import { loop } from './util.js'
+import { loadScene } from './scene.js'
 
 let clients = []
 const app = express()
@@ -13,13 +14,13 @@ const birds = sounds.filter(f => f.match(/bird/) || f.match(/crickets/))
 const thunder = sounds.filter(f => f.match(/thunder/))
 audioManager
   .addTrack({ sounds: birds, name: 'birds', maxActive: 2, minDelay: 1_000 })
-  .on('playing', ({ file, clip }) => console.log(`Playing ${file}`))
+  .on('playing', ({ file, clip }) => console.log(`Playing ${file} on birds`))
   audioManager
   .addTrack({ sounds: ambient, name: 'ambient' })
-  .on('playing', ({ file, clip }) => console.log(`Playing ${file}`))
+  .on('playing', ({ file, clip }) => console.log(`Playing ${file} on ambient`))
   audioManager
   .addTrack({ sounds: thunder, name: 'thunder', maxActive: 5, minDelay: 300 })
-  .on('playing', ({ file, clip }) => console.log(`Playing ${file}`))
+  .on('playing', ({ file, clip }) => console.log(`Playing ${file} on thunder`))
 const speaker = C.DEBUG ?
   new Speaker({
     channels: C.CHANNELS,
@@ -28,10 +29,12 @@ const speaker = C.DEBUG ?
   }) :
     { write: () => {} }
 
-// eslint-disable-next-line no-magic-numbers
+audioManager.fillTracks()
+
 loop(async () => {
   await audioManager.schedule()
   audioManager.generateFrame()
+// eslint-disable-next-line no-magic-numbers
 }, (C.BUFFER_FRAMES / C.SAMPLE_RATE) * 1000)
 
 audioManager.on('frame', (out) => [ ...clients, speaker ].forEach((c) => {
@@ -49,3 +52,6 @@ app.get('/stream.wav', (req, res) => {
 })
 
 app.listen(C.PORT, () => console.log(`stream: http://localhost:${C.PORT}/stream.wav`))
+
+
+//loadScene('./scenes/thunderstorm.json')
