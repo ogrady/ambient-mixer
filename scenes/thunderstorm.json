@@ -17,12 +17,10 @@
       "delay": 500,
       "sounds": {
         "match":
-          {
-            "any": [
+          [
               "crickets",
               "birds"
-            ]
-          }
+          ]
       }
     }
   ]

@@ -1,5 +1,4 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "required": ["name", "tracks"],
   "additionalProperties": false,
@@ -77,18 +76,10 @@
 
       "properties": {
         "match": {
-          "type": "object",
-          "required": ["any"],
-          "additionalProperties": false,
-
-          "properties": {
-            "any": {
-              "type": "array",
-              "minItems": 1,
-              "items": {
-                "type": "string"
-              }
-            }
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
           }
         }
       }

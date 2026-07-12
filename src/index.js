@@ -54,4 +54,5 @@ app.get('/stream.wav', (req, res) => {
 app.listen(C.PORT, () => console.log(`stream: http://localhost:${C.PORT}/stream.wav`))
 
 
-//loadScene('./scenes/thunderstorm.json')
+const x = loadScene('./scenes/thunderstorm.json')
+console.log(x)

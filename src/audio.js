@@ -7,9 +7,9 @@ import EventEmitter from 'node:events'
 
 const declip = (bit) => clamp(bit, C.AUDIO_CLIPPING_LOWER_BOUND, C.AUDIO_CLIPPING_UPPER_BOUND)
 
-export const loadAudioFiles = () => fs.readdirSync('./sounds').
-  filter((f) => f.endsWith('.mp3')).
-  map((f) => path.join('./sounds', f))
+export const loadAudioFiles = () => fs.readdirSync('./sounds')
+  .filter((f) => f.endsWith('.mp3'))
+  .map((f) => path.join('./sounds', f))
 
 /** @returns {Promise<Buffer>} */
 const decodeMp3 = (file) => new Promise((resolve, reject) => {
@@ -155,6 +155,13 @@ export class AudioManager {
     this.#emitter.on(event, fn)
   }
 
+  /**
+   * @param {object} o 
+   * @param {string} o.name
+   * @param {string[]} o.sounds
+   * @param {number} o.maxActive
+   * @param {number} o.minDelay
+   */
   addTrack({ name, sounds = [], maxActive = 1, minDelay = 0 } = {}) {
     const track = new AudioTrack({ name, sounds, maxActive, minDelay })
     this.#tracks.push(track)

@@ -5,7 +5,7 @@ import Ajv from "ajv";
 const ajv = new Ajv({ allErrors: true });
 
 const schema = JSON.parse(
-  fs.readFileSync("./scene.schema.json", "utf8")
+  fs.readFileSync("./scripts/scene.schema.json", "utf8")
 );
 
 const validate = ajv.compile(schema);
