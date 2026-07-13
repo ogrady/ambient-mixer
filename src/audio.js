@@ -48,7 +48,13 @@ class AudioClip {
     return (this.buffer.length - this.offset) / C.FRAME_BYTES
   }
 
-  constructor ({ buffer, offset = 0, volume = 0.8 } = {}) {
+  /**
+   * @param {object} o
+   * @param {Buffer} o.buffer
+   * @param {number} [o.offset]
+   * @param {number} [o.volume] 
+   */
+  constructor ({ buffer, offset = 0, volume = 0.8 }) {
     this.buffer = buffer
     this.offset = 0
     this.volume = 0.8

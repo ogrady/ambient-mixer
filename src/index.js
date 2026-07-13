@@ -1,10 +1,10 @@
 import express from 'express'
 import Speaker from 'speaker'
 import * as C from './constants.js'
-import { loadAudioFiles, AudioManager } from './audio.js'
 import { loop } from './util.js'
 import { loadScene } from './scene.js'
 
+/** @type {{write: (data: string) => void}[]} */
 let clients = []
 const app = express()
 
@@ -47,9 +47,6 @@ loop(async () => {
 audioManager.on('frame', (out) => [ ...clients, speaker ].forEach((c) => {
   c.write(out)
 }))
-audioManager.on('new-clip', (ac) => {
-  ac.on('finished', () => console.log('clip ended'))
-})
 
 app.get('/stream.wav', (req, res) => {
   // eslint-disable-next-line no-magic-numbers
