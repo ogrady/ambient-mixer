@@ -1,21 +1,31 @@
+import Speaker from 'speaker'
+import * as C from './constants.js'
+
+export const createSpeaker = () => C.DEBUG ?
+  new Speaker({
+    channels: C.CHANNELS,
+    bitDepth: 16,
+    sampleRate: C.SAMPLE_RATE,
+  }) :
+    { write: () => {} }
+
 /**
- * @param {number} val 
- * @param {number} min 
- * @param {number} max 
+ * @param {number} val
+ * @param {number} min
+ * @param {number} max
  */
 export const clamp = (val, min, max) => Math.min(max, Math.max(min, val))
 
 /**
- * @template T
- * @param {T[]} arr 
- * @returns {T}
+ * @template       T
+ * @param    {T[]} arr
  */
 export const pick = (arr) => /** @type {T} */(arr[Math.floor(Math.random() * arr.length)])
 
 /**
- * @param {Function} fn 
- * @param {number} delay 
- * @param  {...any} args 
+ * @param {Function} fn
+ * @param {number}   delay
+ * @param {...any}   args
  */
 export async function loop (fn, delay, ...args) {
   await fn(...args)
@@ -34,14 +44,14 @@ export class LruCache {
   }
 
   /**
-   * @param {string} key 
+   * @param {string} key
    */
   has (key) {
     return this.#cache.has(key)
   }
 
   /**
-   * @param {string} key 
+   * @param   {string}   key
    * @returns {T | null}
    */
   get (key) {
@@ -58,8 +68,8 @@ export class LruCache {
   }
 
   /**
-   * @param {string} key 
-   * @param {T} value 
+   * @param {string} key
+   * @param {T}      value
    */
   set (key, value) {
     if (this.#cache.has(key))

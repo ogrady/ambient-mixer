@@ -14,7 +14,7 @@ const dir = './scenes'
 
 let failed = false
 
-for (const file of fs.readdirSync(dir).filter(f => f.endsWith('.json'))) {
+for (const file of fs.readdirSync(dir).filter((f) => f.endsWith('.json'))) {
   const full = path.join(dir, file)
   const scene = JSON.parse(fs.readFileSync(full, 'utf8'))
 

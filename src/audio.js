@@ -13,7 +13,7 @@ export const loadAudioFiles = () => fs.readdirSync('./sounds').
   map((f) => path.join('./sounds', f))
 
 /**
- * @param {string} file
+ * @param   {string}          file
  * @returns {Promise<Buffer>}
  */
 const decodeMp3 = (file) => new Promise((resolve, reject) => {
@@ -23,9 +23,9 @@ const decodeMp3 = (file) => new Promise((resolve, reject) => {
     '-f',
     's16le',
     '-ac',
-    ''+C.CHANNELS,
+    String(C.CHANNELS),
     '-ar',
-    ''+C.SAMPLE_RATE,
+    String(C.SAMPLE_RATE),
     '-',
   ])
   /** @type {Uint8Array<ArrayBufferLike>[]} */
@@ -37,7 +37,7 @@ const decodeMp3 = (file) => new Promise((resolve, reject) => {
     if (code === 0)
       resolve(Buffer.concat(chunks))
     else
-      reject(new Error(`ffmpeg failed: ${code}`))
+      reject(new Error(`ffmpeg failed for file ${file}: ${code}`))
   })
 })
 
@@ -52,7 +52,7 @@ class AudioClip {
    * @param {object} o
    * @param {Buffer} o.buffer
    * @param {number} [o.offset]
-   * @param {number} [o.volume] 
+   * @param {number} [o.volume]
    */
   constructor ({ buffer, offset = 0, volume = 0.8 }) {
     this.buffer = buffer
@@ -62,20 +62,20 @@ class AudioClip {
 
   /**
    * @param {'finished'} event
-   * @param {(...args: any[]) => void} fn
+   * @param {() => void} fn
    */
   on (event, fn) {
     this.#emitter.on(event, fn)
   }
 
   /**
-   * @param {Buffer} out 
+   * @param {Buffer} out
    */
   mix (out) {
     const frames = Math.min(this.#remainingFrames, out.length / C.FRAME_BYTES)
 
     // each sample uses 2 bytes -> +2
-    // eslint-disable-next-line no-magic-numbers
+
     for (let i = 0; i < frames * C.FRAME_BYTES; i += 2) {
       const sample =
         this.buffer.readInt16LE(this.offset + i) *
@@ -115,11 +115,12 @@ class AudioTrack {
   }
 
   /**
-   * @param {object} o
-   * @param {string} o.name
-   * @param {number} o.maxActive
+   * @param {object}   o
+   * @param {string}   o.name
+   * @param {number}   o.maxActive
    * @param {string[]} o.sounds
-   * @param {number} o.minDelay 
+   * @param {number}   o.minDelay
+   * @throws {Error}
    */
   constructor ({ name = '', maxActive = 1, sounds = [], minDelay = 0 }) {
     this.#maxActive = maxActive
@@ -131,16 +132,16 @@ class AudioTrack {
   }
 
   /**
-   * 
-   * @param {'playing'} event 
-   * @param {(...args: any[]) => void} fn 
+   *
+   * @param {'playing'}                                         event
+   * @param {(params: {file: string, clip: AudioClip}) => void} fn
    */
   on (event, fn) {
     this.#emitter.on(event, fn)
   }
 
   /**
-   * @param {string} file
+   * @param   {string}                file
    * @returns {ReturnType<decodeMp3>}
    */
   async #getAudio (file) {
@@ -179,7 +180,7 @@ class AudioTrack {
   }
 
   /**
-   * @param {Buffer} buffer 
+   * @param {Buffer} buffer
    */
   async generateFrame (buffer) {
     this.#active = this.#active.filter((c) => !c.mix(buffer))
@@ -189,11 +190,11 @@ class AudioTrack {
 export class AudioManager {
   #emitter = new EventEmitter()
   /** @type {AudioTrack[]} */
-  #tracks = []
+  tracks = []
 
   /**
-   * @param {'frame'} event 
-   * @param {(...args: any[]) => void} fn 
+   * @param {'frame'}                  event
+   * @param {(...args: any[]) => void} fn
    */
   on (event, fn) {
     this.#emitter.on(event, fn)
@@ -209,7 +210,7 @@ export class AudioManager {
   addTrack ({ name, sounds = [], maxActive = 1, minDelay = 0 }) {
     const track = new AudioTrack({ name, sounds, maxActive, minDelay })
 
-    this.#tracks.push(track)
+    this.tracks.push(track)
 
     return track
   }
@@ -220,21 +221,58 @@ export class AudioManager {
    * sound bits all at once while some bits may already be playing.
    */
   async fillTracks () {
-    return Promise.all(this.#tracks.map((t) => t.fillWithRandomSounds()))
+    return Promise.all(this.tracks.map((t) => t.fillWithRandomSounds()))
   }
 
   async schedule () {
-    return Promise.all(this.#tracks.map((t) => t.addRandomSound()))
+    return Promise.all(this.tracks.map((t) => t.addRandomSound()))
   }
 
   async generateFrame () {
     const out = Buffer.alloc(C.BUFFER_SIZE)
 
-    for (const track of this.#tracks) {
+    for (const track of this.tracks) {
       // eslint-disable-next-line no-await-in-loop
       await track.generateFrame(out)
     }
 
     this.#emitter.emit('frame', out)
   }
+}
+
+/**
+ * Required for clients like VLC to properly
+ * recognize and start the stream.
+ * @param {object} o
+ * @param {number} o.sampleRate
+ * @param {number} o.channels
+ * @param {number} o.bitsPerSample
+ */
+export function createWavHeader ({
+  sampleRate,
+  channels,
+  bitsPerSample,
+}) {
+  const blockAlign = channels * bitsPerSample / 8
+  const byteRate = sampleRate * blockAlign
+
+  const header = Buffer.alloc(44)
+
+  header.write('RIFF', 0)
+  header.writeUInt32LE(0xffffffff, 4) // unknown size
+  header.write('WAVE', 8)
+
+  header.write('fmt ', 12)
+  header.writeUInt32LE(16, 16) // PCM fmt chunk size
+  header.writeUInt16LE(1, 20) // PCM
+  header.writeUInt16LE(channels, 22)
+  header.writeUInt32LE(sampleRate, 24)
+  header.writeUInt32LE(byteRate, 28)
+  header.writeUInt16LE(blockAlign, 32)
+  header.writeUInt16LE(bitsPerSample, 34)
+
+  header.write('data', 36)
+  header.writeUInt32LE(0xffffffff, 40) // unknown data size
+
+  return header
 }

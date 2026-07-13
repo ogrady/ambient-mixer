@@ -1,8 +1,8 @@
 import express from 'express'
-import Speaker from 'speaker'
 import * as C from './constants.js'
-import { loop } from './util.js'
+import { loop, createSpeaker } from './util.js'
 import { loadScene } from './scene.js'
+import { createWavHeader } from './audio.js'
 
 /** @type {{write: (data: string) => void}[]} */
 let clients = []
@@ -28,36 +28,42 @@ audioManager.
   addTrack({ sounds: thunder, name: 'thunder', maxActive: 5, minDelay: 300 }).
   on('playing', ({ file, clip }) => console.log(`Playing ${file} on thunder`))
 */
-const speaker = C.DEBUG
-  ? new Speaker({
-    channels: C.CHANNELS,
-    bitDepth: 16,
-    sampleRate: C.SAMPLE_RATE,
-  })
-  : { write: () => {} }
+const speaker = createSpeaker()
 
 audioManager.fillTracks()
 
 loop(async () => {
   await audioManager.schedule()
   audioManager.generateFrame()
-// eslint-disable-next-line no-magic-numbers
 }, (C.BUFFER_FRAMES / C.SAMPLE_RATE) * 1000)
 
 audioManager.on('frame', (out) => [ ...clients, speaker ].forEach((c) => {
   c.write(out)
 }))
+for (const track of audioManager.tracks) {
+  track.on('playing', ({ file, clip }) => {
+    console.log(`playing ${file} on track ${track.name}`)
+    clip.on('finished', () => console.log(`finished playing ${file} on track ${track.name}`))
+  })
+}
 
 app.get('/stream.wav', (req, res) => {
-  // eslint-disable-next-line no-magic-numbers
-  res.writeHead(200, { 'Content-Type': 'audio/wav' })
+  // res.writeHead(200, { 'Content-Type': 'audio/wav' })
+
+  res.writeHead(200, {
+    'Content-Type': 'audio/wav',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+  })
+
+  res.write(createWavHeader({
+    sampleRate: C.SAMPLE_RATE,
+    channels: C.CHANNELS,
+    bitsPerSample: 16,
+  }))
   clients.push(res)
   req.on('close', () => clients = clients.filter((c) => c !== res))
 })
 
 app.listen(C.PORT, () => console.log(`stream: http://localhost:${C.PORT}/stream.wav`))
 
-
-const x = loadScene('./scenes/thunderstorm.json')
-
-console.log(x)

@@ -27,7 +27,9 @@ export default {
     'jsdoc/require-hyphen-before-param-description': 'warn',
     'jsdoc/require-jsdoc': 'off',
     'jsdoc/require-throws': 'error',
+    // mine
     'jsdoc/require-param-description': 'off',
+    'jsdoc/require-returns': 'off',
 
     // Possible problems
     'array-callback-return': [ 'error', { checkForEach: true } ],
@@ -154,16 +156,6 @@ export default {
     'no-lone-blocks': 'error',
     'no-lonely-if': 'error',
     'no-loop-func': 'error',
-    'no-magic-numbers': [
-      'error',
-      {
-        ignore: [ 0, 1 ],
-        ignoreArrayIndexes: true,
-        ignoreDefaultValues: true,
-        ignoreClassFieldInitialValues: true,
-        enforceConst: true,
-      },
-    ],
     'no-multi-assign': [ 'error', { ignoreNonDeclaration: true } ],
     'no-multi-str': 'error',
     'no-negated-condition': 'error',
@@ -306,6 +298,7 @@ export default {
         ternaryOperandBinaryExpressions: false,
         enforceForArrowConditionals: false,
         enforceForSequenceExpressions: false,
+        allowParensAfterCommentPattern: '@type',
       },
     ],
     '@stylistic/js/no-extra-semi': 'error',
