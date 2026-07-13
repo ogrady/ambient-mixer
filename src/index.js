@@ -7,6 +7,11 @@ import { loadScene } from './scene.js'
 
 let clients = []
 const app = express()
+
+const scene = loadScene('./scenes/thunderstorm.json')
+const { audioManager } = scene
+
+/*
 const audioManager = new AudioManager()
 const sounds = loadAudioFiles()
 const ambient = sounds.filter((f) => f.match(/rain/) || f.match(/waves/) || f.match(/brook/))
@@ -22,13 +27,14 @@ audioManager.
 audioManager.
   addTrack({ sounds: thunder, name: 'thunder', maxActive: 5, minDelay: 300 }).
   on('playing', ({ file, clip }) => console.log(`Playing ${file} on thunder`))
-const speaker = C.DEBUG ?
-  new Speaker({
+*/
+const speaker = C.DEBUG
+  ? new Speaker({
     channels: C.CHANNELS,
     bitDepth: 16,
     sampleRate: C.SAMPLE_RATE,
-  }) :
-    { write: () => {} }
+  })
+  : { write: () => {} }
 
 audioManager.fillTracks()
 

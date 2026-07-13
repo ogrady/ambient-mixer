@@ -5,6 +5,7 @@ import { spawn } from 'child_process'
 import { clamp, LruCache, pick } from './util.js'
 import EventEmitter from 'node:events'
 
+/** @param {number} bit */
 const declip = (bit) => clamp(bit, C.AUDIO_CLIPPING_LOWER_BOUND, C.AUDIO_CLIPPING_UPPER_BOUND)
 
 export const loadAudioFiles = () => fs.readdirSync('./sounds').
@@ -12,6 +13,7 @@ export const loadAudioFiles = () => fs.readdirSync('./sounds').
   map((f) => path.join('./sounds', f))
 
 /**
+ * @param {string} file
  * @returns {Promise<Buffer>}
  */
 const decodeMp3 = (file) => new Promise((resolve, reject) => {
@@ -21,11 +23,12 @@ const decodeMp3 = (file) => new Promise((resolve, reject) => {
     '-f',
     's16le',
     '-ac',
-    C.CHANNELS,
+    ''+C.CHANNELS,
     '-ar',
-    C.SAMPLE_RATE,
+    ''+C.SAMPLE_RATE,
     '-',
   ])
+  /** @type {Uint8Array<ArrayBufferLike>[]} */
   const chunks = []
 
   ffmpeg.stdout.on('data', (d) => chunks.push(d))
@@ -34,7 +37,7 @@ const decodeMp3 = (file) => new Promise((resolve, reject) => {
     if (code === 0)
       resolve(Buffer.concat(chunks))
     else
-      reject(new Error('ffmpeg failed'))
+      reject(new Error(`ffmpeg failed: ${code}`))
   })
 })
 
@@ -51,10 +54,17 @@ class AudioClip {
     this.volume = 0.8
   }
 
+  /**
+   * @param {'finished'} event
+   * @param {(...args: any[]) => void} fn
+   */
   on (event, fn) {
     this.#emitter.on(event, fn)
   }
 
+  /**
+   * @param {Buffer} out 
+   */
   mix (out) {
     const frames = Math.min(this.#remainingFrames, out.length / C.FRAME_BYTES)
 
@@ -91,14 +101,21 @@ class AudioTrack {
   /** @type {AudioClip[]} */
   #active = []
   /** @type {number} */
-  #lastAddedTimestamp
+  #lastAddedTimestamp = 0
   #cache = new LruCache()
 
   get full () {
     return this.#active.length >= this.#maxActive
   }
 
-  constructor ({ name = '', maxActive = 1, sounds = [], minDelay = 0 } = {}) {
+  /**
+   * @param {object} o
+   * @param {string} o.name
+   * @param {number} o.maxActive
+   * @param {string[]} o.sounds
+   * @param {number} o.minDelay 
+   */
+  constructor ({ name = '', maxActive = 1, sounds = [], minDelay = 0 }) {
     this.#maxActive = maxActive
     this.#sounds = sounds
     this.name = name
@@ -107,11 +124,17 @@ class AudioTrack {
       throw new Error(`track ${name} has no sounds`)
   }
 
+  /**
+   * 
+   * @param {'playing'} event 
+   * @param {(...args: any[]) => void} fn 
+   */
   on (event, fn) {
     this.#emitter.on(event, fn)
   }
 
   /**
+   * @param {string} file
    * @returns {ReturnType<decodeMp3>}
    */
   async #getAudio (file) {
@@ -149,6 +172,9 @@ class AudioTrack {
     }
   }
 
+  /**
+   * @param {Buffer} buffer 
+   */
   async generateFrame (buffer) {
     this.#active = this.#active.filter((c) => !c.mix(buffer))
   }
@@ -159,6 +185,10 @@ export class AudioManager {
   /** @type {AudioTrack[]} */
   #tracks = []
 
+  /**
+   * @param {'frame'} event 
+   * @param {(...args: any[]) => void} fn 
+   */
   on (event, fn) {
     this.#emitter.on(event, fn)
   }
@@ -170,7 +200,7 @@ export class AudioManager {
    * @param {number}   o.maxActive
    * @param {number}   o.minDelay
    */
-  addTrack ({ name, sounds = [], maxActive = 1, minDelay = 0 } = {}) {
+  addTrack ({ name, sounds = [], maxActive = 1, minDelay = 0 }) {
     const track = new AudioTrack({ name, sounds, maxActive, minDelay })
 
     this.#tracks.push(track)

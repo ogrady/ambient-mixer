@@ -21,6 +21,7 @@
   "devDependencies": {
     "@stylistic/eslint-plugin-js": "^4.4.1",
     "@stylistic/eslint-plugin-plus": "^4.4.1",
+    "@types/node": "^26.1.1",
     "ajv": "^8.20.0",
     "eslint": "^10.6.0",
     "eslint-plugin-jsdoc": "^63.0.12",

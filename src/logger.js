@@ -38,3 +38,6 @@ export class Logger {
     )
   }
 }
+
+// TODO: load level from env
+export const LOGGER = new Logger(Logger.LEVELS.debug)

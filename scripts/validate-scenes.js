@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import Ajv from 'ajv'
+import { Ajv } from 'ajv'
 
 const ajv = new Ajv({ allErrors: true })
 
@@ -14,10 +14,7 @@ const dir = './scenes'
 
 let failed = false
 
-for (const file of fs.readdirSync(dir)) {
-  if (!file.endsWith('.json'))
-    continue
-
+for (const file of fs.readdirSync(dir).filter(f => f.endsWith('.json'))) {
   const full = path.join(dir, file)
   const scene = JSON.parse(fs.readFileSync(full, 'utf8'))
 
