@@ -53,11 +53,13 @@ class AudioClip {
    * @param {Buffer} o.buffer
    * @param {number} [o.offset]
    * @param {number} [o.volume]
+   * @param {boolean} [o.loop]
    */
-  constructor ({ buffer, offset = 0, volume = 0.8 }) {
+  constructor ({ buffer, offset = 0, volume = 0.8, loop = false }) {
     this.buffer = buffer
-    this.offset = 0
-    this.volume = 0.8
+    this.offset = offset
+    this.volume = volume
+    this.loop = loop
   }
 
   /**
@@ -89,9 +91,13 @@ class AudioClip {
     this.offset += frames * C.FRAME_BYTES
     const finished = this.offset >= this.buffer.length
 
-    if (finished)
+    if (finished) {
       this.#emitter.emit('finished')
-
+      if (this.loop) {
+        this.offset = 0
+        return false
+      }
+    }
     return finished
   }
 }
@@ -120,13 +126,15 @@ class AudioTrack {
    * @param {number}   o.maxActive
    * @param {string[]} o.sounds
    * @param {number}   o.minDelay
+   * @param {boolean}  o.loop
    * @throws {Error}
    */
-  constructor ({ name = '', maxActive = 1, sounds = [], minDelay = 0 }) {
+  constructor ({ name = '', maxActive = 1, sounds = [], minDelay = 0, loop = false }) {
     this.#maxActive = maxActive
     this.#sounds = sounds
     this.name = name
     this.#minDelay = minDelay
+    this.loop = loop
     if (this.#sounds.length === 0)
       throw new Error(`track ${name} has no sounds`)
   }
@@ -165,7 +173,7 @@ class AudioTrack {
     this.#lastAddedTimestamp = now
     const file = pick(this.#sounds)
     const pcm = await this.#getAudio(file)
-    const ac = new AudioClip({ buffer: pcm })
+    const ac = new AudioClip({ buffer: pcm, loop: this.loop })
 
     this.#active.push(ac)
     this.#emitter.emit('playing', { file, clip: ac })
@@ -206,9 +214,10 @@ export class AudioManager {
    * @param {string[]} o.sounds
    * @param {number}   o.maxActive
    * @param {number}   o.minDelay
+   * @param {boolean} o.loop
    */
-  addTrack ({ name, sounds = [], maxActive = 1, minDelay = 0 }) {
-    const track = new AudioTrack({ name, sounds, maxActive, minDelay })
+  addTrack ({ name, sounds = [], maxActive = 1, minDelay = 0, loop = false }) {
+    const track = new AudioTrack({ name, sounds, maxActive, minDelay, loop })
 
     this.tracks.push(track)
 

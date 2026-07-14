@@ -1,55 +1,46 @@
 import express from 'express'
 import * as C from './constants.js'
-import { loop, createSpeaker } from './util.js'
+import { loop, createSpeaker, pick } from './util.js'
 import { loadScene } from './scene.js'
 import { createWavHeader } from './audio.js'
+import { LOGGER } from './logger.js'
 
 /** @type {{write: (data: string) => void}[]} */
 let clients = []
 const app = express()
 
-const scene = loadScene('./scenes/thunderstorm.json')
+const scenes = [
+  './scenes/thunderstorm.json',
+  './scenes/forest.json',
+  './scenes/beach.json',
+]
+const scene = loadScene(pick(scenes))
 const { audioManager } = scene
-
-/*
-const audioManager = new AudioManager()
-const sounds = loadAudioFiles()
-const ambient = sounds.filter((f) => f.match(/rain/) || f.match(/waves/) || f.match(/brook/))
-const birds = sounds.filter((f) => f.match(/bird/) || f.match(/crickets/))
-const thunder = sounds.filter((f) => f.match(/thunder/))
-
-audioManager.
-  addTrack({ sounds: birds, name: 'birds', maxActive: 2, minDelay: 1_000 }).
-  on('playing', ({ file, clip }) => console.log(`Playing ${file} on birds`))
-audioManager.
-  addTrack({ sounds: ambient, name: 'ambient' }).
-  on('playing', ({ file, clip }) => console.log(`Playing ${file} on ambient`))
-audioManager.
-  addTrack({ sounds: thunder, name: 'thunder', maxActive: 5, minDelay: 300 }).
-  on('playing', ({ file, clip }) => console.log(`Playing ${file} on thunder`))
-*/
 const speaker = createSpeaker()
 
-audioManager.fillTracks()
+LOGGER.info(`loaded scene ${scene.name} with tracks: [${audioManager.tracks.map(t => t.name).join(', ')}]`)
+
+audioManager.on('frame', (out) => [ ...clients, speaker ].forEach((c) => {
+  c.write(out)
+}))
+
+for (const track of audioManager.tracks) {
+  track.on('playing', ({ file, clip }) => {
+    LOGGER.debug(`playing ${file} on track ${track.name}`)
+    clip.on('finished', () =>  LOGGER.debug(`finished playing ${file} on track ${track.name} (looping: ${clip.loop})`))
+  })
+}
+
+LOGGER.debug('filling tracks')
+await audioManager.fillTracks()
+LOGGER.debug('done prefilling. Starting main loop')
 
 loop(async () => {
   await audioManager.schedule()
   audioManager.generateFrame()
 }, (C.BUFFER_FRAMES / C.SAMPLE_RATE) * 1000)
 
-audioManager.on('frame', (out) => [ ...clients, speaker ].forEach((c) => {
-  c.write(out)
-}))
-for (const track of audioManager.tracks) {
-  track.on('playing', ({ file, clip }) => {
-    console.log(`playing ${file} on track ${track.name}`)
-    clip.on('finished', () => console.log(`finished playing ${file} on track ${track.name}`))
-  })
-}
-
 app.get('/stream.wav', (req, res) => {
-  // res.writeHead(200, { 'Content-Type': 'audio/wav' })
-
   res.writeHead(200, {
     'Content-Type': 'audio/wav',
     'Cache-Control': 'no-cache',
@@ -65,5 +56,4 @@ app.get('/stream.wav', (req, res) => {
   req.on('close', () => clients = clients.filter((c) => c !== res))
 })
 
-app.listen(C.PORT, () => console.log(`stream: http://localhost:${C.PORT}/stream.wav`))
-
+app.listen(C.PORT, () => LOGGER.info(`stream: http://localhost:${C.PORT}/stream.wav`))

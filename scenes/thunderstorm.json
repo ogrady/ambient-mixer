@@ -6,20 +6,19 @@
       "mode": "loop",
       "maxActive": 1,
       "sounds": {
-        "files": [
-          "sounds/rain1.mp3"
+        "match": [
+          "rain"
         ]
       }
     },
     {
-      "name": "animals",
+      "name": "nature",
       "maxActive": 2,
       "delay": 500,
       "sounds": {
         "match":
           [
-              "crickets",
-              "birds"
+              "thunder"
           ]
       }
     }

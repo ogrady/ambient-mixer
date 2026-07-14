@@ -17,6 +17,7 @@ class Scene {
         maxActive: track.maxActive,
         minDelay: track.minDelay,
         sounds: track.sounds.files,
+        loop: track.loop
       })
     }
   }
@@ -45,12 +46,13 @@ export function loadScene (file) {
           some((pattern) => sound.match(pattern)))
     }
     // in loop mode, pick one single option to repeat
-    if (track.mode === 'loop')
-      // @ts-expect-error
+    if (track.mode === 'loop') {
       track.sounds.files = [ pick(track.sounds.files) ]
+      track.loop = true
+    }
   }
   const normalised = /** @type {import('../types.d.ts').schema.NormalisedScene} */sceneData
-
+  // TODO: for explicit lists, make sure the files actually exists
   return new Scene({
     name: sceneData.name,
     trackData: normalised.tracks,

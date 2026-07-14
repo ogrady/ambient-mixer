@@ -1,3 +1,5 @@
+export type NoneEmptyArray<T> = [T, ...T[]]
+
 export namespace schema {
     type Match = {
         match: string[]
@@ -15,7 +17,8 @@ export namespace schema {
     }
 
     type NormalisedTrack = Omit<Track, 'sounds'> & {
-        sounds: { files: string[] }
+        sounds: { files: string[] },
+        loop?: boolean
     }
 
     type Scene = {
