@@ -1,0 +1,15 @@
+{
+  "name": "forest",
+  "tracks": [
+    {
+      "name": "ambient",
+      "mode": "loop",
+      "maxActive": 1,
+      "sounds": {
+        "match": [
+          "waves"
+        ]
+      }
+    }
+  ]
+}

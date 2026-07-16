@@ -1,0 +1,28 @@
+{
+  "name": "forest",
+  "tracks": [
+    {
+      "name": "ambient",
+      "mode": "loop",
+      "maxActive": 1,
+      "sounds": {
+        "files": [
+          "sounds/brook1.mp3",
+          "sounds/brook2.mp3"
+        ]
+      }
+    },
+    {
+      "name": "animals",
+      "maxActive": 2,
+      "delay": 500,
+      "sounds": {
+        "match":
+          [
+              "crickets",
+              "birds"
+          ]
+      }
+    }
+  ]
+}
