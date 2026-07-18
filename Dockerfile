@@ -1,7 +1,7 @@
 FROM node:26-slim
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ffmpeg && \
+    apt-get install -y --no-install-recommends build-essential libasound2-dev python3 ffmpeg && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

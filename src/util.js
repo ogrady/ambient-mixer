@@ -1,12 +1,12 @@
-import Speaker from 'speaker'
+//import Speaker from 'speaker'
 import * as C from './constants.js'
-
+console.log("it is: " + C.DEBUG)
 export const createSpeaker = () => C.DEBUG ?
-  new Speaker({
+  { write: () => {} } /*new Speaker({
     channels: C.CHANNELS,
     bitDepth: 16,
     sampleRate: C.SAMPLE_RATE,
-  }) :
+  }) */:
     { write: () => {} }
 
 /**
