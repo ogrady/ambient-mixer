@@ -17,7 +17,7 @@ class Scene {
         maxActive: track.maxActive,
         minDelay: track.minDelay,
         sounds: track.sounds.files,
-        loop: track.loop
+        loop: track.loop ?? false
       })
     }
   }

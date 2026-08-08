@@ -1,13 +1,13 @@
-//import Speaker from 'speaker'
+import Speaker from 'speaker'
 import * as C from './constants.js'
-console.log("it is: " + C.DEBUG)
-export const createSpeaker = () => C.DEBUG ?
-  { write: () => {} } /*new Speaker({
-    channels: C.CHANNELS,
-    bitDepth: 16,
-    sampleRate: C.SAMPLE_RATE,
-  }) */:
-    { write: () => {} }
+
+export const createSpeaker = () => C.DEBUG 
+  ? new Speaker({
+      channels: C.CHANNELS,
+      bitDepth: 16,
+      sampleRate: C.SAMPLE_RATE,
+    })
+  : { write: () => {} }
 
 /**
  * @param {number} val

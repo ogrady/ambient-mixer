@@ -15,7 +15,7 @@
     {
       "name": "animals",
       "maxActive": 2,
-      "delay": 500,
+      "minDelay": 500,
       "sounds": {
         "match":
           [

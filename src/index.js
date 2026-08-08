@@ -1,4 +1,6 @@
 import express from 'express'
+import fs from 'node:fs'
+import path from 'node:path'
 import * as C from './constants.js'
 import { loop, createSpeaker, pick } from './util.js'
 import { loadScene } from './scene.js'
@@ -9,11 +11,16 @@ import { LOGGER } from './logger.js'
 let clients = []
 const app = express()
 
-const scenes = [
-  './scenes/thunderstorm.json',
-  './scenes/forest.json',
-  './scenes/beach.json',
-]
+const scenes = fs
+  .readdirSync(C.SCENES_DIR)
+  .filter((f) => f.endsWith('.json'))
+  .map((f) => path.join(C.SCENES_DIR, f))
+
+if (scenes.length === 0) {
+  LOGGER.error(`no scenes found in ${C.SCENES_DIR}`)
+  process.exit(1)
+}
+
 const scene = loadScene(pick(scenes))
 const { audioManager } = scene
 const speaker = createSpeaker()

@@ -1,5 +1,5 @@
 {
-  "name": "forest",
+  "name": "thunderstorm",
   "tracks": [
     {
       "name": "ambient",
@@ -14,7 +14,7 @@
     {
       "name": "nature",
       "maxActive": 2,
-      "delay": 500,
+      "minDelay": 500,
       "sounds": {
         "match":
           [

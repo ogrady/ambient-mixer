@@ -39,7 +39,7 @@
           "minimum": 1
         },
 
-        "delay": {
+        "minDelay": {
           "type": "integer",
           "minimum": 0
         },
