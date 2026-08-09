@@ -1,0 +1,10 @@
+services:
+  ambient-mixer:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./sounds:/app/sounds:ro
+      - ./scenes:/app/scenes:ro
+      - ./.env:/app/.env:ro
+    restart: unless-stopped
