@@ -209,6 +209,13 @@ export class AudioManager {
   }
 
   /**
+   * @param {'frame' | undefined} event 
+   */
+  removeAllListeners(event = undefined) {
+    this.#emitter.removeAllListeners(event)
+  }
+
+  /**
    * @param {object}   o
    * @param {string}   o.name
    * @param {string[]} o.sounds

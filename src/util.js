@@ -29,7 +29,7 @@ export const pick = (arr) => /** @type {T} */(arr[Math.floor(Math.random() * arr
  */
 export async function loop (fn, delay, ...args) {
   await fn(...args)
-  setTimeout(loop, delay, fn, delay, ...args)
+  return setTimeout(loop, delay, fn, delay, ...args)
 }
 
 /**

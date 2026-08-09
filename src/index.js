@@ -4,11 +4,16 @@ import path from 'node:path'
 import * as C from './constants.js'
 import { loop, createSpeaker, pick } from './util.js'
 import { loadScene } from './scene.js'
-import { createWavHeader } from './audio.js'
+import { AudioManager, createWavHeader } from './audio.js'
 import { LOGGER } from './logger.js'
 
 /** @type {{write: (data: string) => void}[]} */
 let clients = []
+/** @type {AudioManager | null} */
+let audioManager
+/** @type {NodeJS.Timeout} */
+let timeOut
+const speaker = createSpeaker()
 const app = express()
 
 const scenes = fs
@@ -21,33 +26,42 @@ if (scenes.length === 0) {
   process.exit(1)
 }
 
-const scene = loadScene(pick(scenes))
-const { audioManager } = scene
-const speaker = createSpeaker()
+async function startRandomScene() {
+  const scene = loadScene(pick(scenes))
+  audioManager = scene.audioManager
+  LOGGER.info(`loaded scene ${scene.name} with tracks: [${audioManager.tracks.map(t => t.name).join(', ')}]`)
+  audioManager.on('frame', (out) => [ ...clients, speaker ].forEach((c) => {
+    c.write(out)
+  }))
 
-LOGGER.info(`loaded scene ${scene.name} with tracks: [${audioManager.tracks.map(t => t.name).join(', ')}]`)
+  for (const track of audioManager.tracks) {
+    track.on('playing', ({ file, clip }) => {
+      LOGGER.debug(`playing ${file} on track ${track.name}`)
+      clip.on('finished', () =>  LOGGER.debug(`finished playing ${file} on track ${track.name} (looping: ${clip.loop})`))
+    })
+  }
 
-audioManager.on('frame', (out) => [ ...clients, speaker ].forEach((c) => {
-  c.write(out)
-}))
+  LOGGER.debug('filling tracks')
+  await audioManager.fillTracks()
+  LOGGER.debug('done prefilling. Starting main loop')
 
-for (const track of audioManager.tracks) {
-  track.on('playing', ({ file, clip }) => {
-    LOGGER.debug(`playing ${file} on track ${track.name}`)
-    clip.on('finished', () =>  LOGGER.debug(`finished playing ${file} on track ${track.name} (looping: ${clip.loop})`))
-  })
+  timeOut = await loop(async () => {
+    await audioManager?.schedule()
+    audioManager?.generateFrame()
+  }, (C.BUFFER_FRAMES / C.SAMPLE_RATE) * 1000)
 }
 
-LOGGER.debug('filling tracks')
-await audioManager.fillTracks()
-LOGGER.debug('done prefilling. Starting main loop')
+function stopScene () {
+  LOGGER.debug('stopping scene')
+  if (timeOut) timeOut.close()
+  if (audioManager) audioManager.removeAllListeners()
+  audioManager = null
+}
 
-loop(async () => {
-  await audioManager.schedule()
-  audioManager.generateFrame()
-}, (C.BUFFER_FRAMES / C.SAMPLE_RATE) * 1000)
 
-app.get('/stream.wav', (req, res) => {
+app.get('/stream.wav', async (req, res) => {
+  if (clients.length === 0) await startRandomScene()
+
   res.writeHead(200, {
     'Content-Type': 'audio/wav',
     'Cache-Control': 'no-cache',
@@ -60,7 +74,10 @@ app.get('/stream.wav', (req, res) => {
     bitsPerSample: 16,
   }))
   clients.push(res)
-  req.on('close', () => clients = clients.filter((c) => c !== res))
+  req.on('close', () => {
+    clients = clients.filter((c) => c !== res)
+    if (clients.length === 0) stopScene()
+  })
 })
 
 app.listen(C.PORT, () => LOGGER.info(`stream: http://localhost:${C.PORT}/stream.wav`))
