@@ -53,8 +53,8 @@ async function startRandomScene() {
 
 function stopScene () {
   LOGGER.debug('stopping scene')
-  if (timeOut) timeOut.close()
-  if (audioManager) audioManager.removeAllListeners()
+  timeOut?.close()
+  audioManager?.removeAllListeners()
   audioManager = null
 }
 

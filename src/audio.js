@@ -62,11 +62,19 @@ class AudioClip {
     this.loop = loop
   }
 
+  destroy () {
+    this.#emitter.removeAllListeners()
+  }
+
   /**
    * @param {'finished'} event
    * @param {() => void} fn
+   * @param {boolean} unique - if true, can not register same listener twice
    */
-  on (event, fn) {
+  on (event, fn, unique = false) {
+    if (unique && this.#emitter.listeners(event).find(l => l === fn)) {
+      return
+    }
     this.#emitter.on(event, fn)
   }
 
@@ -139,6 +147,10 @@ class AudioTrack {
       throw new Error(`track ${name} has no sounds`)
   }
 
+  destroy () {
+
+  }
+
   /**
    *
    * @param {'playing'}                                         event
@@ -199,6 +211,12 @@ export class AudioManager {
   #emitter = new EventEmitter()
   /** @type {AudioTrack[]} */
   tracks = []
+
+  destroy () {
+    for (const t of this.tracks) {
+      t.destroy()
+    }
+  }
 
   /**
    * @param {'frame'}                  event
