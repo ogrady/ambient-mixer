@@ -27,9 +27,29 @@ export const pick = (arr) => /** @type {T} */(arr[Math.floor(Math.random() * arr
  * @param {number}   delay
  * @param {...any}   args
  */
-export async function loop (fn, delay, ...args) {
-  await fn(...args)
-  return setTimeout(loop, delay, fn, delay, ...args)
+export function loop (fn, delay, ...args) {
+  /** @type {ReturnType<setTimeout>} */
+  let timer
+  let stopped = false
+
+  const run = async () => {
+    if (stopped) return
+
+    await fn(...args)
+
+    if (!stopped) {
+      timer = setTimeout(run, delay)
+    }
+  }
+
+  run()
+
+  return {
+    close () {
+      stopped = true
+      if (timer) clearTimeout(timer)
+    },
+  }
 }
 
 /**

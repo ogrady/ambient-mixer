@@ -11,7 +11,7 @@ import { LOGGER } from './logger.js'
 let clients = []
 /** @type {AudioManager | null} */
 let audioManager
-/** @type {NodeJS.Timeout} */
+/** @type {{close: () => void}} */
 let timeOut
 const speaker = createSpeaker()
 const app = express()
@@ -45,9 +45,9 @@ async function startRandomScene() {
   await audioManager.fillTracks()
   LOGGER.debug('done prefilling. Starting main loop')
 
-  timeOut = await loop(async () => {
+  timeOut = loop(async () => {
     await audioManager?.schedule()
-    audioManager?.generateFrame()
+    await audioManager?.generateFrame()
   }, (C.BUFFER_FRAMES / C.SAMPLE_RATE) * 1000)
 }
 
