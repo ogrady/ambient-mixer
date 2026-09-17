@@ -3,6 +3,8 @@ services:
     build: ../app
     ports:
       - "8000:8000"
+    devices:
+      - /dev/snd:/dev/snd
     volumes:
       - ./sounds:/app/sounds:ro
       - ./scenes:/app/scenes:ro
