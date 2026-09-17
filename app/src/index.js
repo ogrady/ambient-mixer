@@ -58,6 +58,9 @@ function stopScene () {
   audioManager = null
 }
 
+app.get('/health', (_, res) => {
+  res.status(200).send('OK')
+})
 
 app.get('/stream.wav', async (req, res) => {
   if (clients.length === 0) await startRandomScene()
