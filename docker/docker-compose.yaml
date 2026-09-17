@@ -6,5 +6,6 @@ services:
     volumes:
       - ./sounds:/app/sounds:ro
       - ./scenes:/app/scenes:ro
-      - ./.env:/app/.env:ro
+    env_file:
+      - .env
     restart: unless-stopped
