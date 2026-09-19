@@ -234,6 +234,14 @@ export class AudioManager {
   }
 
   /**
+   * @param {'frame'} event 
+   * @param {(...args: any[]) => void} listener 
+   */
+  removeListener(event, listener) {
+    this.#emitter.removeListener(event, listener)
+  }
+
+  /**
    * @param {object}   o
    * @param {string}   o.name
    * @param {string[]} o.sounds
@@ -309,4 +317,29 @@ export function createWavHeader ({
   header.writeUInt32LE(0xffffffff, 40) // unknown data size
 
   return header
+}
+
+export function createMp3Encoder () {
+  const ffmpeg = spawn('ffmpeg', [
+    '-f', 's16le',
+    '-ar', String(C.SAMPLE_RATE),
+    '-ac', String(C.CHANNELS),
+    '-i', 'pipe:0',
+    '-f', 'mp3',
+    '-flush_packets', '1',
+    '-muxdelay', '0',
+    '-b:a', '192k',
+    '-c:a', 'libmp3lame',
+    '-ar', String(C.SAMPLE_RATE),
+    '-ac', String(C.CHANNELS),
+    'pipe:1',
+  ])
+
+  ffmpeg.stderr.on('data', () => {})
+
+  return {
+    input: ffmpeg.stdin,
+    output: ffmpeg.stdout,
+    process: ffmpeg,
+  }
 }
