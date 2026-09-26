@@ -41,9 +41,14 @@ async function startRandomScene() {
     clients.forEach((c) => c.write(chunk))
   })
 
+
   audioManager.on('frame', (out) => {
     speaker.write(out)
-    encoder?.input.write(out)
+    const ok = encoder?.input.write(out)
+
+    if (!ok) {
+      LOGGER.warn('MP3 encoder input buffer is full')
+    }
   })
 
   for (const track of audioManager.tracks) {
