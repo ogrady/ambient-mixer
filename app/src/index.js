@@ -37,17 +37,40 @@ async function startRandomScene() {
 
   encoder = createMp3Encoder()
 
+  encoder.process.on('error', (err) => {
+    LOGGER.error('mp3 encoder process error:', err?.message ?? err)
+    stopScene()
+  })
+  encoder.process.on('exit', (code) => {
+    if (code !== 0 && code !== null) {
+      LOGGER.warn(`mp3 encoder process exited with code ${code}`)
+    }
+  })
+  encoder.output.on('error', (err) => {
+    LOGGER.error('mp3 encoder output error:', err?.message ?? err)
+    stopScene()
+  })
   encoder.output.on('data', (chunk) => {
-    clients.forEach((c) => c.write(chunk))
+    for (const c of clients) {
+      try {
+        c.write(chunk)
+      } catch (e) {
+        // ignore per-client write errors; 'error' handler will clean up
+      }
+    }
   })
 
-
   audioManager.on('frame', (out) => {
-    speaker.write(out)
-    const ok = encoder?.input.write(out)
-
-    if (!ok) {
-      LOGGER.warn('MP3 encoder input buffer is full')
+    try {
+      speaker.write(out)
+    } catch (e) {
+      LOGGER.warn('speaker write failed:', e?.message ?? e)
+    }
+    if (encoder?.input && !encoder.input.destroyed) {
+      const ok = encoder.input.write(out)
+      if (!ok) {
+        LOGGER.warn('MP3 encoder input buffer is full')
+      }
     }
   })
 
@@ -59,24 +82,48 @@ async function startRandomScene() {
   }
 
   LOGGER.debug('filling tracks')
-  await audioManager.fillTracks()
+  try {
+    await audioManager.fillTracks()
+  } catch (err) {
+    LOGGER.error('failed to fill tracks:', err?.message ?? err)
+    stopScene()
+    return
+  }
   LOGGER.debug('done prefilling. Starting main loop')
 
   timeOut = loop(async () => {
-    await audioManager?.schedule()
-    await audioManager?.generateFrame()
+    try {
+      await audioManager?.schedule()
+      await audioManager?.generateFrame()
+    } catch (err) {
+      LOGGER.error('audio loop error:', err?.message ?? err)
+      stopScene()
+    }
   }, (C.BUFFER_FRAMES / C.SAMPLE_RATE) * 1000)
 }
 
 function stopScene () {
   LOGGER.debug('stopping scene')
-  timeOut?.close()
+  if (timeOut) {
+    timeOut.close()
+    timeOut = null
+  }
 
-  encoder?.input.end()
-  encoder = null
+  if (encoder) {
+    try {
+      encoder.input?.end()
+    } catch (e) {}
+    try {
+      encoder.process?.kill('SIGTERM')
+    } catch (e) {}
+    encoder = null
+  }
 
-  audioManager?.removeAllListeners()
-  audioManager = null
+  if (audioManager) {
+    audioManager.removeAllListeners()
+    audioManager.destroy?.()
+    audioManager = null
+  }
 }
 
 app.get('/health', (_, res) => {
@@ -93,10 +140,12 @@ app.get('/stream.mp3', async (req, res) => {
   })
 
   clients.push(res)
-
+  res.on('error', () => {
+    clients = clients.filter((c) => c !== res)
+    if (clients.length === 0) stopScene()
+  })
   req.on('close', () => {
     clients = clients.filter((c) => c !== res)
-
     if (clients.length === 0) stopScene()
   })
 })
@@ -116,6 +165,10 @@ app.get('/stream.wav', async (req, res) => {
     bitsPerSample: 16,
   }))
   clients.push(res)
+  res.on('error', () => {
+    clients = clients.filter((c) => c !== res)
+    if (clients.length === 0) stopScene()
+  })
   req.on('close', () => {
     clients = clients.filter((c) => c !== res)
     if (clients.length === 0) stopScene()
