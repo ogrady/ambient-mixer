@@ -4,6 +4,7 @@ import path from 'node:path'
 import { spawn } from 'child_process'
 import { clamp, LruCache, pick } from './util.js'
 import EventEmitter from 'node:events'
+import { LOGGER } from './logger.js'
 
 /** @param {number} bit */
 const declip = (bit) => clamp(bit, C.AUDIO_CLIPPING_LOWER_BOUND, C.AUDIO_CLIPPING_UPPER_BOUND)
@@ -133,7 +134,7 @@ class AudioTrack {
    * @param {string}   o.name
    * @param {number}   o.maxActive
    * @param {string[]} o.sounds
-   * @param {number}   o.minDelay
+   * @param {number}   [o.minDelay]
    * @param {boolean}  o.loop
    * @throws {Error}
    */
@@ -141,14 +142,18 @@ class AudioTrack {
     this.#maxActive = maxActive
     this.#sounds = sounds
     this.name = name
-    this.#minDelay = minDelay
+    this.#minDelay = Number.isFinite(minDelay) ? minDelay : 0
     this.loop = loop
     if (this.#sounds.length === 0)
       throw new Error(`track ${name} has no sounds`)
   }
 
   destroy () {
-
+    for (const clip of this.#active) {
+      clip.destroy?.()
+    }
+    this.#active = []
+    this.#emitter.removeAllListeners()
   }
 
   /**
@@ -184,11 +189,14 @@ class AudioTrack {
       return
     this.#lastAddedTimestamp = now
     const file = pick(this.#sounds)
-    const pcm = await this.#getAudio(file)
-    const ac = new AudioClip({ buffer: pcm, loop: this.loop })
-
-    this.#active.push(ac)
-    this.#emitter.emit('playing', { file, clip: ac })
+    try {
+      const pcm = await this.#getAudio(file)
+      const ac = new AudioClip({ buffer: pcm, loop: this.loop })
+      this.#active.push(ac)
+      this.#emitter.emit('playing', { file, clip: ac })
+    } catch (err) {
+      LOGGER.error(`failed to load/decode sound "${file}" on track "${this.name}":`, err?.message ?? err)
+    }
   }
 
   async fillWithRandomSounds () {
@@ -216,6 +224,8 @@ export class AudioManager {
     for (const t of this.tracks) {
       t.destroy()
     }
+    this.tracks = []
+    this.#emitter.removeAllListeners()
   }
 
   /**
