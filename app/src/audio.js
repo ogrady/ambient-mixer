@@ -80,34 +80,48 @@ class AudioClip {
   }
 
   /**
+   * Mix this clip into `out`, filling the entire output buffer. Looping clips
+   * wrap and continue from the start of their buffer if they reach the end.
    * @param {Buffer} out
+   * @returns {boolean} true if the clip finished (non-looping), otherwise false
    */
   mix (out) {
-    const frames = Math.min(this.#remainingFrames, out.length / C.FRAME_BYTES)
+    let outOffset = 0
 
-    // each sample uses 2 bytes -> +2
-
-    for (let i = 0; i < frames * C.FRAME_BYTES; i += 2) {
-      const sample =
-        this.buffer.readInt16LE(this.offset + i) *
-        this.volume
-      const existing = out.readInt16LE(i)
-      const mixed = declip(existing + sample)
-
-      out.writeInt16LE(mixed, i)
-    }
-
-    this.offset += frames * C.FRAME_BYTES
-    const finished = this.offset >= this.buffer.length
-
-    if (finished) {
-      this.#emitter.emit('finished')
-      if (this.loop) {
+    while (outOffset < out.length) {
+      if (this.#remainingFrames <= 0) {
+        if (!this.loop) return true
         this.offset = 0
-        return false
+      }
+
+      const frames = Math.min(this.#remainingFrames, (out.length - outOffset) / C.FRAME_BYTES)
+      if (frames <= 0) break
+
+      const bytes = frames * C.FRAME_BYTES
+      for (let i = 0; i < bytes; i += 2) {
+        const sample =
+          this.buffer.readInt16LE(this.offset + i) *
+          this.volume
+        const existing = out.readInt16LE(outOffset + i)
+        const mixed = declip(existing + sample)
+
+        out.writeInt16LE(mixed, outOffset + i)
+      }
+
+      this.offset += bytes
+      outOffset += bytes
+
+      if (this.offset >= this.buffer.length) {
+        this.#emitter.emit('finished')
+        if (this.loop) {
+          this.offset = 0
+        } else {
+          return true
+        }
       }
     }
-    return finished
+
+    return false
   }
 }
 
@@ -123,10 +137,12 @@ class AudioTrack {
   #active = []
   /** @type {number} */
   #lastAddedTimestamp = 0
+  /** @type {number} */
+  #pending = 0
   #cache = new LruCache()
 
   get full () {
-    return this.#active.length >= this.#maxActive
+    return this.#active.length + this.#pending >= this.#maxActive
   }
 
   /**
@@ -183,11 +199,13 @@ class AudioTrack {
   async addRandomSound () {
     if (this.full)
       return
-    const now = new Date().getTime()
+    const now = Date.now()
 
     if (this.#lastAddedTimestamp + this.#minDelay > now)
       return
     this.#lastAddedTimestamp = now
+    this.#pending++
+
     const file = pick(this.#sounds)
     try {
       const pcm = await this.#getAudio(file)
@@ -196,6 +214,8 @@ class AudioTrack {
       this.#emitter.emit('playing', { file, clip: ac })
     } catch (err) {
       LOGGER.error(`failed to load/decode sound "${file}" on track "${this.name}":`, err?.message ?? err)
+    } finally {
+      this.#pending--
     }
   }
 
@@ -210,7 +230,7 @@ class AudioTrack {
   /**
    * @param {Buffer} buffer
    */
-  async generateFrame (buffer) {
+  generateFrame (buffer) {
     this.#active = this.#active.filter((c) => !c.mix(buffer))
   }
 }
@@ -276,16 +296,17 @@ export class AudioManager {
     return Promise.all(this.tracks.map((t) => t.fillWithRandomSounds()))
   }
 
-  async schedule () {
-    return Promise.all(this.tracks.map((t) => t.addRandomSound()))
+  schedule () {
+    for (const track of this.tracks) {
+      void track.addRandomSound()
+    }
   }
 
-  async generateFrame () {
+  generateFrame () {
     const out = Buffer.alloc(C.BUFFER_SIZE)
 
     for (const track of this.tracks) {
-      // eslint-disable-next-line no-await-in-loop
-      await track.generateFrame(out)
+      track.generateFrame(out)
     }
 
     this.#emitter.emit('frame', out)
