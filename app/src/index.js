@@ -1,23 +1,30 @@
 import express from 'express'
 import fs from 'node:fs'
 import path from 'node:path'
+import { once } from 'node:events'
 import * as C from './constants.js'
 import { loop, createSpeaker, pick } from './util.js'
 import { loadScene } from './scene.js'
 import { AudioManager, createMp3Encoder, createWavHeader } from './audio.js'
 import { LOGGER } from './logger.js'
 
-/** @type {{write: (data: string) => void}[]} */
+/** @type {import('node:http').ServerResponse[]} */
 let clients = []
 /** @type {AudioManager | null} */
 let audioManager
-/** @type {{close: () => void}} */
+/** @type {{close: () => void} | null} */
 let timeOut
 const speaker = createSpeaker()
 const app = express()
 
 /** @type {{input: import('node:stream').Writable, output: import('node:stream').Readable, process: import('node:child_process').ChildProcess} | null} */
 let encoder = null
+/** @type {Promise<void> | null} */
+let encoderDrain = null
+/** @type {Promise<void> | null} */
+let speakerDrain = null
+/** @type {WeakSet<import('node:http').ServerResponse>} */
+let drainingClients = new WeakSet()
 
 const scenes = fs
   .readdirSync(C.SCENES_DIR)
@@ -29,9 +36,25 @@ if (scenes.length === 0) {
   process.exit(1)
 }
 
+/**
+ * Wait for a writable stream to drain, resolving if it closes/ends/errors first.
+ * @param {import('node:stream').Writable} stream
+ */
+async function waitForDrain (stream) {
+  if (stream.destroyed || stream.writableEnded) return
+  await Promise.race([
+    once(stream, 'drain'),
+    once(stream, 'close').catch(() => {}),
+    once(stream, 'error').catch(() => {}),
+  ])
+}
+
 async function startRandomScene() {
   const scene = loadScene(pick(scenes))
   audioManager = scene.audioManager
+  encoderDrain = null
+  speakerDrain = null
+  drainingClients = new WeakSet()
 
   LOGGER.info(`loaded scene ${scene.name} with tracks: [${audioManager.tracks.map(t => t.name).join(', ')}]`)
 
@@ -53,7 +76,12 @@ async function startRandomScene() {
   encoder.output.on('data', (chunk) => {
     for (const c of clients) {
       try {
-        c.write(chunk)
+        if (drainingClients.has(c)) continue
+        const ok = c.write(chunk)
+        if (!ok) {
+          drainingClients.add(c)
+          c.once('drain', () => drainingClients.delete(c))
+        }
       } catch (e) {
         // ignore per-client write errors; 'error' handler will clean up
       }
@@ -62,14 +90,27 @@ async function startRandomScene() {
 
   audioManager.on('frame', (out) => {
     try {
-      speaker.write(out)
+      const ok = speaker.write(out)
+      if (ok === false && !speakerDrain) {
+        speakerDrain = waitForDrain(speaker).finally(() => { speakerDrain = null })
+      }
     } catch (e) {
       LOGGER.warn('speaker write failed:', e?.message ?? e)
     }
     if (encoder?.input && !encoder.input.destroyed) {
-      const ok = encoder.input.write(out)
-      if (!ok) {
-        LOGGER.warn('MP3 encoder input buffer is full')
+      try {
+        if (!encoderDrain) {
+          const ok = encoder.input.write(out)
+          if (!ok) {
+            encoderDrain = waitForDrain(encoder.input).finally(() => { encoderDrain = null })
+          }
+        } else {
+          // Encoder input is still draining; drop this frame for the encoder to
+          // avoid unbounded buffering. Speaker/local playback continues.
+          LOGGER.warn('MP3 encoder input buffer is full; dropping frame')
+        }
+      } catch (e) {
+        LOGGER.warn('encoder write failed:', e?.message ?? e)
       }
     }
   })
@@ -93,8 +134,9 @@ async function startRandomScene() {
 
   timeOut = loop(async () => {
     try {
-      await audioManager?.schedule()
-      await audioManager?.generateFrame()
+      audioManager?.schedule()
+      audioManager?.generateFrame()
+      if (speakerDrain) await speakerDrain
     } catch (err) {
       LOGGER.error('audio loop error:', err?.message ?? err)
       stopScene()
@@ -108,6 +150,10 @@ function stopScene () {
     timeOut.close()
     timeOut = null
   }
+
+  encoderDrain = null
+  speakerDrain = null
+  drainingClients = new WeakSet()
 
   if (encoder) {
     try {
@@ -141,10 +187,12 @@ app.get('/stream.mp3', async (req, res) => {
 
   clients.push(res)
   res.on('error', () => {
+    drainingClients.delete(res)
     clients = clients.filter((c) => c !== res)
     if (clients.length === 0) stopScene()
   })
   req.on('close', () => {
+    drainingClients.delete(res)
     clients = clients.filter((c) => c !== res)
     if (clients.length === 0) stopScene()
   })
@@ -164,12 +212,16 @@ app.get('/stream.wav', async (req, res) => {
     channels: C.CHANNELS,
     bitsPerSample: 16,
   }))
+  // Note: stream data is currently fed from the MP3 encoder output, so /stream.wav
+  // does not deliver valid WAV PCM audio. Header/startup behavior is preserved.
   clients.push(res)
   res.on('error', () => {
+    drainingClients.delete(res)
     clients = clients.filter((c) => c !== res)
     if (clients.length === 0) stopScene()
   })
   req.on('close', () => {
+    drainingClients.delete(res)
     clients = clients.filter((c) => c !== res)
     if (clients.length === 0) stopScene()
   })

@@ -23,26 +23,39 @@ export const clamp = (val, min, max) => Math.min(max, Math.max(min, val))
 export const pick = (arr) => /** @type {T} */(arr[Math.floor(Math.random() * arr.length)])
 
 /**
- * @param {Function} fn
+ * Drift-correcting real-time loop. Schedules ticks at a fixed interval based
+ * on when the loop started, rather than delaying a fixed amount after each
+ * iteration completes. If execution falls behind, missed ticks are skipped to
+ * avoid a catch-up spiral.
+ *
+ * @param {() => Promise<void> | void} fn
  * @param {number}   delay
  * @param {...any}   args
  */
 export function loop (fn, delay, ...args) {
-  /** @type {ReturnType<setTimeout>} */
+  /** @type {ReturnType<setTimeout> | undefined} */
   let timer
   let stopped = false
+  let next = Date.now() + delay
 
   const run = async () => {
     if (stopped) return
 
     await fn(...args)
 
-    if (!stopped) {
-      timer = setTimeout(run, delay)
+    if (stopped) return
+
+    next += delay
+    const now = Date.now()
+    if (next <= now) {
+      // Dropped behind real time; skip missed ticks instead of spiralling.
+      next = now + delay
     }
+
+    timer = setTimeout(run, next - now)
   }
 
-  run()
+  timer = setTimeout(run, delay)
 
   return {
     close () {
